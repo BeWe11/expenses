@@ -76,6 +76,7 @@ def list_entries(args):
             continue
         total_cost += entry['cost']
         print(entry_string(entry))
+
     print('- ' * 33 + '-')
     print('Total cost: {:.2f} Euro'.format(total_cost))
     print('')
@@ -153,8 +154,6 @@ def main():
     if args.subparser_name != 'setup':
         db.open()
     args.func(args)
-
-
 
 
 if __name__ == "__main__":
