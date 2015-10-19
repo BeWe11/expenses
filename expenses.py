@@ -65,6 +65,9 @@ def change_entry(args):
     if args.col != 'tags':
         assert len(args.val) == 1, 'Only one value for column "{}" possible.'.format(args.col)
 
+    assert args.col in ['name', 'cost', 'date', 'tags'], 'Valid column choices' \
+    ' are "name", "cost", "date" and "tags".'
+
     if args.col == 'name':
         val = args.val[0]
     elif args.col == 'cost':
@@ -94,8 +97,15 @@ def list_entries(args):
     else:
         days = 30
 
+    if args.sort:
+        assert args.sort in ['name', 'cost', 'date'], 'Valid column' \
+        'choices are "name", "cost" and "date".'
+        sort_key = args.sort
+    else:
+        sort_key = 'date'
+
     total_cost = 0
-    for entry in sorted([entry for entry in db if (today-entry['date']).days <= days], key=lambda x: x['date']):
+    for entry in sorted([entry for entry in db if (today-entry['date']).days <= days], key=lambda x: x[sort_key]):
         if args.tags and not any(tag in entry['tags'] + [entry['name']] for tag in args.tags):
             continue
         if args.Tags and any(tag in entry['tags'] + [entry['name']] for tag in args.Tags):
@@ -159,8 +169,8 @@ def main():
         ' the database.')
     parser_change.add_argument('id', type=int, help='ID of the entry to be'
         ' changed.')
-    parser_change.add_argument('col', type=str, help='Column to be changed. Valid choices are'
-        ' "name", "cost", "date" and "tags".')
+    parser_change.add_argument('col', type=str, help='Column to be changed.'
+        ' Valid choices are "name", "cost", "date" and "tags".')
     parser_change.add_argument('val', type=str, nargs='*', help='Value to be'
         ' inserted. The tags list will get replaced completely.')
     parser_change.set_defaults(func=change_entry)
@@ -174,6 +184,8 @@ def main():
     parser_list.add_argument('-T', '--Tags', type=str, nargs='+', help='Only'
         ' list entries without the specified tags. Entry names are treated as'
         ' tags. Usage: "-T tag1 tag2 ...".')
+    parser_list.add_argument('-s', '--sort', type=str, help='Sort entries by'
+        ' the given column name. Valid names are "name", "cost" and "date".')
     parser_list.set_defaults(func=list_entries)
 
     parser_setup = subparsers.add_parser('setup', help='Create the database in'
