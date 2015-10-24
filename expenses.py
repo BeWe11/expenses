@@ -104,11 +104,14 @@ def list_entries(args):
     else:
         sort_key = 'date'
 
+    include_tags = [tag for tag in args.tags if not tag.startswith('/')]
+    exclude_tags = [tag.lstrip('/') for tag in args.tags if tag.startswith('/')]
+
     total_cost = 0
     for entry in sorted([entry for entry in db if (today-entry['date']).days <= days], key=lambda x: x[sort_key]):
-        if args.tags and not any(tag in entry['tags'] + [entry['name']] for tag in args.tags):
+        if include_tags and not any(tag in entry['tags'] + [entry['name']] for tag in include_tags):
             continue
-        if args.Tags and any(tag in entry['tags'] + [entry['name']] for tag in args.Tags):
+        if exclude_tags and any(tag in entry['tags'] + [entry['name']] for tag in exclude_tags):
             continue
         total_cost += entry['cost']
         print(entry_string(entry))
@@ -180,10 +183,7 @@ def main():
         ' days the will be included in the output. Defaults to 30.')
     parser_list.add_argument('-t', '--tags', type=str, nargs='+', help='Only'
         ' list entries with the specified tags. Entry names are treated as'
-        ' tags. Usage: "-t tag1 tag2 ...".')
-    parser_list.add_argument('-T', '--Tags', type=str, nargs='+', help='Only'
-        ' list entries without the specified tags. Entry names are treated as'
-        ' tags. Usage: "-T tag1 tag2 ...".')
+        ' tags. Usage: "-t tag1 tag2 ...". To exclude a tag, write "/tag".')
     parser_list.add_argument('-s', '--sort', type=str, help='Sort entries by'
         ' the given column name. Valid names are "name", "cost" and "date".')
     parser_list.set_defaults(func=list_entries)
