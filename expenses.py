@@ -104,8 +104,14 @@ def list_entries(args):
     else:
         sort_key = 'date'
 
-    include_tags = [tag for tag in args.tags if not tag.startswith('/')]
-    exclude_tags = [tag.lstrip('/') for tag in args.tags if tag.startswith('/')]
+    include_tags = []
+    exclude_tags = []
+    if args.tags:
+        for tag in args.tags:
+            if tag.startswith('/'):
+                exclude_tags.append(tag.lstrip('/'))
+            else:
+                include_tags.append(tag)
 
     total_cost = 0
     for entry in sorted([entry for entry in db if (today-entry['date']).days <= days], key=lambda x: x[sort_key]):
