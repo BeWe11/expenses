@@ -132,22 +132,22 @@ def setup(args):
         backup_path = path + '.bak'
         shutil.copy(path, backup_path)
 
-    if args.overwrite:
-        mode = 'override'
-    else:
-        mode = 'open'
-
     db = Base(path)
 
     if args.overwrite:
-        db.create('name', 'cost', 'date', 'tags', mode=mode)
-        print('Data base in {} has been overwritten!'.format(path))
+        while 1:
+            confirm = input('Do you really want to overwrite the database ? (y/n) '
+            if confirm in ['y', 'n']:
+                break
+        if confirm == 'y':
+            db.create('name', 'cost', 'date', 'tags', mode='override')
+            print('Data base in {} has been overwritten!'.format(path))
     else:
         if db.exists():
             print('{} already exists and is a database. If you want to recreate'
                   ' it, use the -o flag.'.format(path))
         else:
-            db.create('name', 'cost', 'date', 'tags', mode=mode)
+            db.create('name', 'cost', 'date', 'tags', mode='open')
             print('Created database at {}!'.format(path))
 
 
