@@ -136,7 +136,7 @@ def setup(args):
 
     if args.overwrite:
         while 1:
-            confirm = input('Do you really want to overwrite the database ? (y/n) '
+            confirm = input('Do you really want to overwrite the database ? (y/n) ')
             if confirm in ['y', 'n']:
                 break
         if confirm == 'y':
