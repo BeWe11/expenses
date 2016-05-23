@@ -5,8 +5,13 @@ import os
 import shutil
 import argparse
 from decimal import Decimal, InvalidOperation
-from datetime import datetime
+from datetime import datetime, timedelta
 from pydblite import Base
+
+import numpy as np
+from matplotlib import pyplot as plt
+plt.rc('text', usetex=True)
+plt.rc('axes', labelsize=16)
 
 
 today = datetime.today()
@@ -33,7 +38,11 @@ def add_entry(args):
         try:
             date = datetime.strptime(args.date, date_format)
         except ValueError:
-            raise ValueError('Incorrect date format, should be "DD.MM.YYYY".')
+            if args.date.isdigit():
+                date = today - timedelta(days=int(args.date))
+            else:
+                raise ValueError('Incorrect date format, should be'
+                                 ' "DD.MM.YYYY" or a positive integer.')
     else:
         date = today
 
@@ -151,6 +160,71 @@ def setup(args):
             print('Created database at {}!'.format(path))
 
 
+def plot_average(args):
+    if args.days:
+        days = args.days
+    else:
+        days = (today - db[0]['date']).days
+
+    include_tags = []
+    exclude_tags = []
+    if args.tags:
+        for tag in args.tags:
+            if tag.startswith('/'):
+                exclude_tags.append(tag.lstrip('/'))
+            else:
+                include_tags.append(tag)
+
+    days_per_month = 30
+    average_costs = []
+
+    for current_day in range(days):
+        total_cost = 0
+        for entry in sorted([entry for entry in db if (
+                current_day <= (today-entry['date']).days <= days_per_month + current_day)], key=lambda x: x['date']
+            ):
+            if include_tags and not any(tag in entry['tags'] + [entry['name']] for tag in include_tags):
+                continue
+            if exclude_tags and any(tag in entry['tags'] + [entry['name']] for tag in exclude_tags):
+                continue
+            total_cost += entry['cost']
+        average_costs.append(total_cost)
+
+    x = np.arange(0, len(average_costs))
+    y = [float(val) for val in average_costs]
+
+    params = np.polyfit(x, y, args.order)
+    fit = np.poly1d(params)
+    z = fit(x)
+
+    fig, ax = plt.subplots()
+    ax.set_xlabel("Number of days before today")
+    ax.set_xlim(days-1, 0)
+    ax.set_ylabel("Expenses in the last 30 days")
+
+    if args.tags:
+        data_label = "Data with tags: " + str(args.tags)
+    else:
+        data_label = "Data"
+
+    if args.order == 1:
+        fit_label = r"$%d^{st}$ order fit" % args.order
+    elif args.order == 2:
+        fit_label = r"$%d^{nd}$ order fit" % args.order
+    else:
+        fit_label = r"$%d^{th}$ order fit" % args.order
+
+    ax.plot(x, y, label=data_label)
+    ax.plot(x, z, linestyle="--", color="g", label=fit_label)
+    ax.legend(loc='best')
+    plt.show()
+
+    #  print('- ' * 33 + '-')
+    #  print('Total cost: {:.2f} Euro'.format(total_cost))
+    #  print('')
+
+
+
 def main():
     parser = argparse.ArgumentParser(prog='expenses', description='This script'
         ' manages your expenses.')
@@ -161,7 +235,9 @@ def main():
     parser_add.add_argument('name', type=str, help='Name of the entry.')
     parser_add.add_argument('cost', type=str, help='Cost of the entry.')
     parser_add.add_argument('-d', '--date', type=str, help='Date of'
-            ' expenditure. Usage "-d DD.MM.YYYY". Defaults to the current date.')
+            ' expenditure. Usage "-d DD.MM.YYYY". Alternatively accepts a'
+            ' positive integer which amounts to the number of days which have'
+            ' passed since the expenditure. Defaults to the current date.')
     parser_add.add_argument('-t', '--tags', type=str, nargs='+', help='Give a'
         ' list of tags that the entry should be associated with. Any string'
         ' can be a tag, you should use the same strings for things you want to'
@@ -193,6 +269,15 @@ def main():
     parser_list.add_argument('-s', '--sort', type=str, help='Sort entries by'
         ' the given column name. Valid names are "name", "cost" and "date".')
     parser_list.set_defaults(func=list_entries)
+
+    parser_plot_average = subparsers.add_parser('average', help='Plot average monthly spending.')
+    parser_plot_average.add_argument('-d', '--days', type=int, help='Number of past'
+        ' days the will be included in the output. If not given, every entry in the data base will be included.')
+    parser_plot_average.add_argument('-t', '--tags', type=str, nargs='+', help='Only'
+        ' include entries with the specified tags. Entry names are treated as'
+        ' tags. Usage: "-t tag1 tag2 ...". To exclude a tag, write "/tag".')
+    parser_plot_average.add_argument('-o', '--order', type=int, default=5, help='Order of the fit polynomial. Defaults to 5.')
+    parser_plot_average.set_defaults(func=plot_average)
 
     parser_setup = subparsers.add_parser('setup', help='Create the database in'
         ' "~/.expenses.pdl". If the file already exists, a backup will be'
