@@ -219,10 +219,50 @@ def plot_average(args):
     ax.legend(loc='best')
     plt.show()
 
-    #  print('- ' * 33 + '-')
-    #  print('Total cost: {:.2f} Euro'.format(total_cost))
-    #  print('')
 
+def compare(args):
+    if args.days:
+        days = args.days
+    else:
+        days = 30
+
+    include_tags = []
+    exclude_tags = []
+    if args.tags:
+        for tag in args.tags:
+            if tag.startswith('/'):
+                exclude_tags.append(tag.lstrip('/'))
+            else:
+                include_tags.append(tag)
+
+    assert len(include_tags) > 0, "At least one tag has to be given!"
+
+    days_per_month = 30
+    average_costs = []
+
+    total_cost = {tag: 0 for tag in include_tags}
+    for entry in sorted([entry for entry in db if (
+            0 <= (today-entry['date']).days <= days)], key=lambda x: x['date']
+        ):
+        if exclude_tags and any(tag in entry['tags'] + [entry['name']] for tag in exclude_tags):
+            continue
+        for tag in include_tags:
+            if tag in entry['tags'] + [entry['name']]:
+                total_cost[tag] += entry['cost']
+
+
+    x = np.arange(0, len(include_tags))
+    y = [total_cost[tag] for tag in include_tags]
+
+    width = 0.85
+
+    fig, ax = plt.subplots()
+    ax.set_xticks(x + 0.5*width)
+    ax.set_xticklabels(include_tags)
+    ax.set_ylabel("Expenses")
+
+    ax.bar(x, y, width)
+    plt.show()
 
 
 def main():
@@ -278,6 +318,13 @@ def main():
         ' tags. Usage: "-t tag1 tag2 ...". To exclude a tag, write "/tag".')
     parser_plot_average.add_argument('-o', '--order', type=int, default=5, help='Order of the fit polynomial. Defaults to 5.')
     parser_plot_average.set_defaults(func=plot_average)
+
+    parser_compare = subparsers.add_parser('compare', help='Compare monthly expenses of different categories.')
+    parser_compare.add_argument('-d', '--days', type=int, help='Number of past'
+        ' days the will be included in the output. Defaults to 30.')
+    parser_compare.add_argument('-t', '--tags', type=str, nargs='+', help='Tags'
+        'to compare. Usage: "-t tag1 tag2 ...". To exclude a tag, write "/tag".')
+    parser_compare.set_defaults(func=compare)
 
     parser_setup = subparsers.add_parser('setup', help='Create the database in'
         ' "~/.expenses.pdl". If the file already exists, a backup will be'
