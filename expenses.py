@@ -15,6 +15,7 @@ plt.rc('axes', labelsize=16)
 
 
 today = datetime.today()
+days_per_month = 30
 date_format = '%d.%m.%Y'
 
 homefolder = os.path.expanduser('~')
@@ -164,7 +165,7 @@ def plot_average(args):
     if args.days:
         days = args.days
     else:
-        days = (today - db[0]['date']).days
+        days = (today - db[0]['date']).days - days_per_month
 
     include_tags = []
     exclude_tags = []
@@ -175,7 +176,6 @@ def plot_average(args):
             else:
                 include_tags.append(tag)
 
-    days_per_month = 30
     average_costs = []
 
     for current_day in range(days):
