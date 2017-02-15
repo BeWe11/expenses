@@ -179,43 +179,59 @@ def plot_average(args):
     average_costs = []
 
     for current_day in range(days):
-        total_cost = 0
+        if not include_tags:
+            include_tags = ["all"]
+        total_cost = {tag: 0 for tag in include_tags}
+
         for entry in sorted([entry for entry in db if (
                 current_day <= (today-entry['date']).days <= days_per_month + current_day)], key=lambda x: x['date']
             ):
-            if include_tags and not any(tag in entry['tags'] + [entry['name']] for tag in include_tags):
-                continue
             if exclude_tags and any(tag in entry['tags'] + [entry['name']] for tag in exclude_tags):
                 continue
-            total_cost += entry['cost']
+            for tag in include_tags:
+                if tag == "all" or tag in entry['tags'] + [entry['name']]:
+                    total_cost[tag] += entry['cost']
         average_costs.append(total_cost)
-
-    x = np.arange(0, len(average_costs))
-    y = [float(val) for val in average_costs]
-
-    params = np.polyfit(x, y, args.order)
-    fit = np.poly1d(params)
-    z = fit(x)
 
     fig, ax = plt.subplots()
     ax.set_xlabel("Number of days before today")
     ax.set_xlim(days-1, 0)
     ax.set_ylabel("Expenses in the last 30 days")
 
-    if args.tags:
-        data_label = "Data with tags: " + str(args.tags)
+    x = np.arange(0, len(average_costs))
+
+    if args.combine:
+        y = [sum([float(val[tag]) for tag in include_tags]) for val in average_costs]
+
+        params = np.polyfit(x, y, args.order)
+        fit = np.poly1d(params)
+        z = fit(x)
+
+        data_label = "Data with tags: " + ', '.join(include_tags)
+
+        ax.plot(x, y, label=data_label)
+        ax.plot(x, z, linestyle="--", color="g")
     else:
-        data_label = "Data"
+        for tag in include_tags:
+            y = [float(val[tag]) for val in average_costs]
+
+            params = np.polyfit(x, y, args.order)
+            fit = np.poly1d(params)
+            z = fit(x)
+
+            data_label = "Data with tag: " + str(tag)
+
+            ax.plot(x, y, label=data_label)
+            ax.plot(x, z, linestyle="--", color="g")
 
     if args.order == 1:
-        fit_label = r"$%d^{st}$ order fit" % args.order
+        fit_label = r"$%d^{st}$ order fits" % args.order
     elif args.order == 2:
-        fit_label = r"$%d^{nd}$ order fit" % args.order
+        fit_label = r"$%d^{nd}$ order fits" % args.order
     else:
-        fit_label = r"$%d^{th}$ order fit" % args.order
+        fit_label = r"$%d^{th}$ order fits" % args.order
+    ax.plot([0], [0], linestyle="--", color="g", label=fit_label)
 
-    ax.plot(x, y, label=data_label)
-    ax.plot(x, z, linestyle="--", color="g", label=fit_label)
     ax.legend(loc='best')
     plt.show()
 
@@ -317,6 +333,7 @@ def main():
         ' include entries with the specified tags. Entry names are treated as'
         ' tags. Usage: "-t tag1 tag2 ...". To exclude a tag, write "/tag".')
     parser_plot_average.add_argument('-o', '--order', type=int, default=5, help='Order of the fit polynomial. Defaults to 5.')
+    parser_plot_average.add_argument('-c', '--combine', action="store_true", help='When set to true, the values of all given tags will be summed up.')
     parser_plot_average.set_defaults(func=plot_average)
 
     parser_compare = subparsers.add_parser('compare', help='Compare monthly expenses of different categories.')
